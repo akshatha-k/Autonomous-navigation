@@ -236,7 +236,6 @@ public:
     // Create pointcloud to publish inliers
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_pub (new pcl::PointCloud<pcl::PointXYZRGB> ());
     int original_size=cloud_filtered->height*cloud_filtered->width;
-    int n_planes(0);
     k=0;
     i=0;
     int nr_points = (int) cloud_filtered->points.size ();
@@ -307,7 +306,7 @@ public:
           cloud_pub->points.push_back(pt_color);
 
       }
-      std::cout<<"exit for"<<std::endl;
+      //std::cout<<"exit for"<<std::endl;
       sigma = sqrt(sigma/inliers->indices.size());
 
       // Extract inliers
@@ -335,14 +334,67 @@ public:
     std::cerr << "Saved " << cloud_pub->points.size () << " data points to test_pcd.pcd." << std::endl;
 }
 
-void DistanceBetweenPlanes()
+void SortOnD()
 {
+  float temp;
+  for(int i=0; i<n_planes; i++)
+  {
+    for(int j=i+1; j<n_planes;j++)
+    {
+      if(coeff_init[i][3]<coeff_init[j][3])
+      {
+        for (int k=0; k<4;k++)
+        {
+          temp=coeff_init[i][k];
+          coeff_init[i][k]=coeff_init[j][k];
+          coeff_init[j][k]=temp;
+        }
 
+      }
+    }
+  }
+  for( int i=0; i<n_planes; i++)
+  {
+    std::cout<<"Plane "<<i<<" "<<coeff_init[i][0]<<" "<<coeff_init[i][1]<<" "<<coeff_init[i][2]<<" "<<coeff_init[i][3]<<std::endl;
+  }
+}
+float distBetweenPlanes()
+{
+    float sumin=0, sumout=0, dist;
+    for(int i=0;i<n_planes;i++)
+    {
+      for(int j=0; j<100;j++){
+        //std::cout<<"Entered for"<<std::endl;
+        float x=rand();
+        float y= rand();
+        float z= (coeff_init[i][3]-coeff_init[i][1]*y-coeff_init[i][0]*x)/coeff_init[i][2];
+        pcl::ModelCoefficients::Ptr coeff (new pcl::ModelCoefficients);
+        pcl::PointXYZ point;
+        point.x = x;
+        point.y=y;
+        point.z=z;
+        std::cout<<"x: "<<point.x<<"y: "<<point.y<<"z:"<<point.z<<std::endl;
+        std::cout<<"first: "<<coeff_init[i+1][0];
+        coeff->values[0]=coeff_init[i+1][0];
+        coeff->values[1]=coeff_init[i+1][1];
+        coeff->values[2]=coeff_init[i+1][2];
+        coeff->values[3]=coeff_init[i+1][3];
+        std::cout<<"reached ";
+        dist= point2planedistance(point,coeff);
+        std::cout<<"distance: "<<dist<<std::endl;
+        sumin+=dist;
+      }
+      dist=sumin/100;
+      sumout+=dist;
+    }
+    dist=sumout/n_planes;
+    return dist;
 }
 private:
   std::string _name;
   bool _color_pc_with_error= false;
   std::vector<Color> colors;
+  int n_planes=0;
 
 };
 
@@ -355,7 +407,8 @@ int main(int argc,char** argv){
 
     PlaneFitter pf;
     pf.getPlanes();
-
+    pf.SortOnD();
+    std::cout<<"Distance between planes: "<<pf.distBetweenPlanes()<<std::endl;
 
     return 0;
 }
