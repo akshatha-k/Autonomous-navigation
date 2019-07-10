@@ -13,14 +13,33 @@
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
 
-float coeff_init[11][4];
-float coeff_init_b[11][4];
+
 float x_bounds[10];
+pcl::PointIndices::Ptr inlie[13];
+float coeff_init[13][4];
 int m=0;
+pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_pub (new pcl::PointCloud<pcl::PointXYZRGB> ());
+
+pcl::PointIndices::Ptr inlie_y[13];
+float coeff_init_y[13][4];
+int m_y=0;
+pcl::PointIndices::Ptr inliers_y (new pcl::PointIndices);
+pcl::ModelCoefficients::Ptr coefficients_y (new pcl::ModelCoefficients);
+pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered_y (new pcl::PointCloud<pcl::PointXYZ>);
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_pub_y (new pcl::PointCloud<pcl::PointXYZRGB> ());
 
 double point2planedistance(pcl::PointXYZ pt, pcl::ModelCoefficients::Ptr coefficients){
     double f1 = fabs(coefficients->values[0]*pt.x+coefficients->values[1]*pt.y+coefficients->values[2]*pt.z+coefficients->values[3]);
     double f2 = sqrt(pow(coefficients->values[0],2)+pow(coefficients->values[1],2)+pow(coefficients->values[2],2));
+    return f1/f2;
+}
+
+double point2planedistance_in_num(pcl::PointXYZRGB pt,float coeff0, float coeff1, float coeff2, float coeff3 ){
+    double f1 = fabs(coeff0*pt.x+coeff1*pt.y+coeff2*pt.z+coeff3);
+    double f2 = sqrt(pow(coeff0,2)+pow(coeff1,2)+pow(coeff2,2));
     return f1/f2;
 }
 
@@ -131,7 +150,7 @@ public:
 
     // Create the filtering object: downsample the dataset using a leaf size of 1cm
     pcl::VoxelGrid<pcl::PointXYZ> vg;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
+  //  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
     vg.setInputCloud (cloud);
     // for 1_pc
     vg.setLeafSize (0.01f, 0.01f, 0.01f);
@@ -223,8 +242,7 @@ public:
 
     pcl::SACSegmentation<pcl::PointXYZ> seg;
     pcl::ExtractIndices<pcl::PointXYZ> extract;
-    pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
-    pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+
     seg.setOptimizeCoefficients (true);
     seg.setModelType (pcl::SACMODEL_PERPENDICULAR_PLANE);
     seg.setAxis(Eigen::Vector3f (0,0,1));
@@ -234,7 +252,7 @@ public:
     seg.setDistanceThreshold (0.04);
 
     // Create pointcloud to publish inliers
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_pub (new pcl::PointCloud<pcl::PointXYZRGB> ());
+    // pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_pub (new pcl::PointCloud<pcl::PointXYZRGB> ());
     int original_size=cloud_filtered->height*cloud_filtered->width;
     k=0;
     i=0;
@@ -312,6 +330,7 @@ public:
       // Extract inliers
       extract.setInputCloud(cloud_filtered);
       extract.setIndices(inliers);
+      inlie[m-1]=inliers;
       extract.setNegative(true);
       pcl::PointCloud<pcl::PointXYZ> cloudF;
       extract.filter(cloudF);
@@ -333,6 +352,218 @@ public:
     //pcl::io::savePLYFileBinary("test_ply.ply", *cloud_pub);
     std::cerr << "Saved " << cloud_pub->points.size () << " data points to test_pcd.pcd." << std::endl;
 }
+//
+// void getPlanesY()
+// {
+//   pcl::PCDReader reader;
+//   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>), cloud_f (new pcl::PointCloud<pcl::PointXYZ>);
+//   reader.read ("/home/akshatha/pcl/cluster/13_Depth.pcd", *cloud);
+//   std::cout << "PointCloud before filtering has: " << cloud->points.size () << " data points." << std::endl; //*
+//
+//   // Create the filtering object: downsample the dataset using a leaf size of 1cm
+//   pcl::VoxelGrid<pcl::PointXYZ> vg;
+// //  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
+//   vg.setInputCloud (cloud);
+//   // for 1_pc
+//   vg.setLeafSize (0.01f, 0.01f, 0.01f);
+//   // for 2_pc
+//   vg.filter (*cloud_filtered_y);
+//   std::cout << "PointCloud after filtering has: " << cloud_filtered_y->points.size ()  << " data points." << std::endl; //*
+//
+//   // Create the segmentation object for the planar model and set all the parameters
+//   pcl::SACSegmentation<pcl::PointXYZ> segx;
+//   pcl::PointIndices::Ptr inliersx (new pcl::PointIndices);
+//   pcl::ModelCoefficients::Ptr coefficientsx (new pcl::ModelCoefficients);
+//   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_planex (new pcl::PointCloud<pcl::PointXYZ> ());
+//   pcl::PCDWriter writer;
+//   segx.setOptimizeCoefficients (true);
+//   segx.setModelType (pcl::SACMODEL_PERPENDICULAR_PLANE);
+//   segx.setAxis(Eigen::Vector3f (1,0,0));
+//   segx.setMethodType (pcl::SAC_RANSAC);
+//   segx.setMaxIterations (1000);
+//   segx.setEpsAngle(pcl::deg2rad (5.0));
+//   segx.setDistanceThreshold (0.1);
+//
+//   // Write the filtered pointcloud
+//   //writer.write<pcl::PointXYZ> ("/home/akshatha/pcl/cluster/cloud_filtered_y.pcd", *cloud_filtered, false);
+//   int k=0;
+//   int x_i=0;
+//   int i=0, nr_pointsx = (int) cloud_filtered_y->points.size ();
+//   while (cloud_filtered_y->points.size () > 0.2 * nr_pointsx)
+//   {
+//
+//     // Segment the largest planar component from the remaining cloud
+//     segx.setInputCloud (cloud_filtered_y);
+//     segx.segment (*inliersx, *coefficientsx);
+//     if (inliersx->indices.size () == 0)
+//     {
+//       std::cout << "Could not estimate a planar model for the given dataset." << std::endl;
+//       break;
+//     }
+//     /*std::cerr<< "Model coefficients: " << coefficientsx->values[0] << " "
+//                                     << coefficientsx->values[1] << " "
+//                                     << coefficientsx->values[2] << " "
+//                                     << coefficientsx->values[3] << std::endl;*/
+//     x_bounds[x_i]=-(coefficientsx->values[3])/coefficientsx->values[0];
+//     x_i++;
+//     // Extract the planar inliers from the input cloud
+//     pcl::ExtractIndices<pcl::PointXYZ> extract;
+//     extract.setInputCloud (cloud_filtered_y);
+//     extract.setIndices (inliersx);
+//     extract.setNegative (false);
+//
+//     // Get the points associated with the planar surface
+//     extract.filter (*cloud_planex);
+//     std::cout << "PointCloud representing the planar component: " << cloud_planex->points.size () << " data points." << std::endl;
+//     std::stringstream ss;
+//     ss << "/home/akshatha/pcl/cluster/p" << k << ".pcd";
+//     writer.write<pcl::PointXYZ> (ss.str (), *cloud_planex, false);
+//     // Remove the planar inliers, extract the rest
+//     extract.setNegative (true);
+//     extract.filter (*cloud_f);
+//     *cloud_filtered = *cloud_f;
+//     k++;
+//   }
+//   double x_left=x_bounds[0];
+//   double x_right=x_bounds[0];
+//   for(int p=0;p<k;p++)
+//   {
+//     if(x_bounds[p]<x_left)
+//     {
+//       x_left=x_bounds[p];
+//     }
+//     if(x_bounds[p]>x_right)
+//     {
+//       x_right=x_bounds[p];
+//     }
+//   }
+//   std::cout<<"leftmost : "<<x_left<<std::endl;
+//   std::cout<<"rightmost : "<<x_right<<std::endl;
+//   // Create the filtering object
+//   pcl::PassThrough<pcl::PointXYZ> pass;
+//   pass.setInputCloud (cloud_filtered_y);
+//   pass.setFilterFieldName ("x");
+//   pass.setFilterLimits (x_left, x_right);
+//   pass.filter (*cloud_filtered_y);
+//
+// //  writer.write<pcl::PointXYZ> ("/home/akshatha/pcl/cluster/cloud_filtered.pcd", *cloud_filtered, false);
+//
+//
+//
+//   // Working to segment stair planes after removing the side walls
+//
+//   pcl::SACSegmentation<pcl::PointXYZ> seg;
+//   pcl::ExtractIndices<pcl::PointXYZ> extract;
+//
+//   seg.setOptimizeCoefficients (true);
+//   seg.setModelType (pcl::SACMODEL_PERPENDICULAR_PLANE);
+//   seg.setAxis(Eigen::Vector3f (0,1,0));
+//   seg.setMethodType (pcl::SAC_RANSAC);
+//   seg.setMaxIterations (1000);
+//   seg.setEpsAngle(pcl::deg2rad (6.0));
+//   seg.setDistanceThreshold (0.04);
+//
+//   // Create pointcloud to publish inliers
+//   // pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_pub (new pcl::PointCloud<pcl::PointXYZRGB> ());
+//   int original_size=cloud_filtered_y->height*cloud_filtered_y->width;
+//   k=0;
+//   i=0;
+//   int nr_points = (int) cloud_filtered_y->points.size ();
+//   while (cloud_filtered_y->points.size () > 0.3 * original_size)
+//   {
+//
+//     // Segment the largest planar component from the remaining cloud
+//     seg.setInputCloud (cloud_filtered_y);
+//     seg.segment (*inliers_y, *coefficients_y);
+//     if (inliers_y->indices.size () == 0)
+//     {
+//       std::cout << "Could not estimate a planar model for the given dataset." << std::endl;
+//       break;
+//     }
+//     std::cerr<< "Model coefficients: " << coefficients_y->values[0] << " "
+//                                     << coefficients_y->values[1] << " "
+//                                     << coefficients_y->values[2] << " "
+//                                     << coefficients_y->values[3] << std::endl;
+//     for (int l=0;l<4;l++ )
+//     {
+//       coeff_init[m][l]=coefficients_y->values[l];
+//     }
+//     m++;
+//     // Extract the planar inliers from the input cloud
+//     double mean_error(0);
+//     double max_error(0);
+//     double min_error(100000);
+//     std::vector<double> err;
+//     for (int i=0;i<inliers_y->indices.size();i++)
+//     {
+//         // Get Point
+//         pcl::PointXYZ pt = cloud_filtered_y->points[inliers_y->indices[i]];
+//
+//         // Compute distance
+//         double d = point2planedistance(pt,coefficients_y)*1000;// mm
+//         err.push_back(d);
+//
+//         // Update statistics
+//         mean_error += d;
+//         if (d>max_error) max_error = d;
+//         if (d<min_error) min_error = d;
+//
+//     }
+//     mean_error/=inliers_y->indices.size();
+//
+//     // Compute Standard deviation
+//     ColorMap cm(min_error,max_error);
+//     double sigma(0);
+//     for (int i=0;i<inliers_y->indices.size();i++){
+//         //std::cout<<"entered second for"<<std::endl;
+//
+//         sigma += pow(err[i] - mean_error,2);
+//
+//         // Get Point
+//         pcl::PointXYZ pt = cloud_filtered_y->points[inliers_y->indices[i]];
+//
+//         // Copy point to new cloud
+//         pcl::PointXYZRGB pt_color;
+//         pt_color.x = pt.x;
+//         pt_color.y = pt.y;
+//         pt_color.z = pt.z;
+//         uint32_t rgb;
+//         if (_color_pc_with_error)
+//             rgb = cm.getColor(err[i]);
+//         else
+//             rgb = colors[n_planes].getColor();
+//         pt_color.rgb = *reinterpret_cast<float*>(&rgb);
+//         cloud_pub_y->points.push_back(pt_color);
+//
+//     }
+//     //std::cout<<"exit for"<<std::endl;
+//     sigma = sqrt(sigma/inliers_y->indices.size());
+//
+//     // Extract inliers
+//     extract.setInputCloud(cloud_filtered_y);
+//     extract.setIndices(inliers_y);
+//     inlie_y[m-1]=inliers_y;
+//     extract.setNegative(true);
+//     pcl::PointCloud<pcl::PointXYZ> cloudF;
+//     extract.filter(cloudF);
+//     cloud_filtered_y->swap(cloudF);
+//
+//     // Display info
+//     /*std::cout<< _name<<": fitted plane "<< n_planes << ": " << coefficients->values[0] << "x" << (coefficients->values[1]>=0?"+":"") << coefficients->values[1] <<"y" << (coefficients->values[2]>=0?"+":"") << coefficients->values[2] << "z"<< (coefficients->values[3]>=0?"+":"") << coefficients->values[3] << "=0 (inliers: " << inliers->indices.size() << "u/" << original_size << ")" << std::endl;
+//     std::cout << _name << ": mean error: " << mean_error << "(mm), standard deviation: " << sigma << " (mm), max error: " << max_error << "(mm)" << std::endl;
+//     std::cout << _name << ": points left in cloud " << cloud_filtered->width<<" "<<cloud->height << std::endl;
+//     std::cout << _name << ": number of points in cloud " << cloud_filtered->size() << std::endl;
+//     */
+//     // Nest iteration
+//     n_planes_y++;
+//   }
+//   cloud_pub_y->width=cloud_pub_y->points.size();
+//   cloud_pub_y->height=1;
+//
+//   pcl::io::savePCDFileASCII ("test_pcd.pcd", *cloud_pub_y);
+//   //pcl::io::savePLYFileBinary("test_ply.ply", *cloud_pub);
+//   std::cerr << "Saved " << cloud_pub_y->points.size () << " data points to test_pcd.pcd." << std::endl;
+// }
 
 void SortOnD()
 {
@@ -341,7 +572,7 @@ void SortOnD()
   {
     for(int j=i+1; j<n_planes;j++)
     {
-      if(coeff_init[i][3]<coeff_init[j][3])
+      if(abs(coeff_init[i][3])<abs(coeff_init[j][3]))
       {
         for (int k=0; k<4;k++)
         {
@@ -360,30 +591,26 @@ void SortOnD()
 }
 float distBetweenPlanes()
 {
-    float sumin=0, sumout=0, dist;
-    for(int i=0;i<n_planes;i++)
+    float sumin, sumout=0, dist;
+    for(int i=0;i<n_planes-1;i++)
     {
+      sumin=0;
       for(int j=0; j<100;j++){
         //std::cout<<"Entered for"<<std::endl;
-        float x=rand();
-        float y= rand();
-        float z= (coeff_init[i][3]-coeff_init[i][1]*y-coeff_init[i][0]*x)/coeff_init[i][2];
-        pcl::ModelCoefficients::Ptr coeff (new pcl::ModelCoefficients);
-        pcl::PointXYZ point;
-        point.x = x;
-        point.y=y;
-        point.z=z;
-        std::cout<<"x: "<<point.x<<"y: "<<point.y<<"z:"<<point.z<<std::endl;
-        std::cout<<"first: "<<coeff_init[i+1][0];
+        pcl::PointXYZRGB point = cloud_pub->points[inlie[i]->indices[rand()%(inlie[i]->indices.size()-1)]];
+        //pcl::ModelCoefficients::Ptr coeff (new pcl::ModelCoefficients);
+        //std::cout<<point.x<<" "<<point.y<<" "<<point.z<<" "<<std::endl;
+        /*
         coeff->values[0]=coeff_init[i+1][0];
         coeff->values[1]=coeff_init[i+1][1];
         coeff->values[2]=coeff_init[i+1][2];
-        coeff->values[3]=coeff_init[i+1][3];
-        std::cout<<"reached ";
-        dist= point2planedistance(point,coeff);
+        coeff->values[3]=coeff_init[i+1][3]; */
+        dist= point2planedistance_in_num(point,coeff_init[i+1][0],coeff_init[i+1][1],coeff_init[i+1][2],coeff_init[i+1][3]);
         std::cout<<"distance: "<<dist<<std::endl;
         sumin+=dist;
+
       }
+      //std::cout<<"dout "<<sumout<<"n :"<<n_planes<<std::endl;
       dist=sumin/100;
       sumout+=dist;
     }
@@ -395,6 +622,7 @@ private:
   bool _color_pc_with_error= false;
   std::vector<Color> colors;
   int n_planes=0;
+  int n_planes_y=0;
 
 };
 
