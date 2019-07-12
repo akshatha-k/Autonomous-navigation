@@ -146,7 +146,7 @@ public:
     pcl::PCDReader reader;
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>), cloud_f (new pcl::PointCloud<pcl::PointXYZ>);
     reader.read ("/home/akshatha/pcl/cluster/13_Depth.pcd", *cloud);
-    std::cout << "PointCloud before filtering has: " << cloud->points.size () << " data points." << std::endl; //*
+    //std::cout << "PointCloud before filtering has: " << cloud->points.size () << " data points." << std::endl; //*
 
     // Create the filtering object: downsample the dataset using a leaf size of 1cm
     pcl::VoxelGrid<pcl::PointXYZ> vg;
@@ -156,7 +156,7 @@ public:
     vg.setLeafSize (0.01f, 0.01f, 0.01f);
     // for 2_pc
     vg.filter (*cloud_filtered);
-    std::cout << "PointCloud after filtering has: " << cloud_filtered->points.size ()  << " data points." << std::endl; //*
+    //std::cout << "PointCloud after filtering has: " << cloud_filtered->points.size ()  << " data points." << std::endl; //*
 
     // Create the segmentation object for the planar model and set all the parameters
     pcl::SACSegmentation<pcl::PointXYZ> segx;
@@ -202,7 +202,7 @@ public:
 
       // Get the points associated with the planar surface
       extract.filter (*cloud_planex);
-      std::cout << "PointCloud representing the planar component: " << cloud_planex->points.size () << " data points." << std::endl;
+      //std::cout << "PointCloud representing the planar component: " << cloud_planex->points.size () << " data points." << std::endl;
       std::stringstream ss;
       ss << "/home/akshatha/pcl/cluster/p" << k << ".pcd";
       writer.write<pcl::PointXYZ> (ss.str (), *cloud_planex, false);
@@ -225,8 +225,8 @@ public:
         x_right=x_bounds[p];
       }
     }
-    std::cout<<"leftmost : "<<x_left<<std::endl;
-    std::cout<<"rightmost : "<<x_right<<std::endl;
+    //std::cout<<"leftmost : "<<x_left<<std::endl;
+    //std::cout<<"rightmost : "<<x_right<<std::endl;
     // Create the filtering object
     pcl::PassThrough<pcl::PointXYZ> pass;
     pass.setInputCloud (cloud_filtered);
@@ -268,10 +268,11 @@ public:
         std::cout << "Could not estimate a planar model for the given dataset." << std::endl;
         break;
       }
-      std::cerr<< "Model coefficients: " << coefficients->values[0] << " "
-                                      << coefficients->values[1] << " "
-                                      << coefficients->values[2] << " "
-                                      << coefficients->values[3] << std::endl;
+
+      // std::cerr<< "Model coefficients: " << coefficients->values[0] << " "
+      //                                 << coefficients->values[1] << " "
+      //                                 << coefficients->values[2] << " "
+      //                                 << coefficients->values[3] << std::endl;
       for (int l=0;l<4;l++ )
       {
         coeff_init[m][l]=coefficients->values[l];
@@ -350,7 +351,7 @@ public:
 
     pcl::io::savePCDFileASCII ("test_pcd.pcd", *cloud_pub);
     //pcl::io::savePLYFileBinary("test_ply.ply", *cloud_pub);
-    std::cerr << "Saved " << cloud_pub->points.size () << " data points to test_pcd.pcd." << std::endl;
+    //std::cerr << "Saved " << cloud_pub->points.size () << " data points to test_pcd.pcd." << std::endl;
 }
 //
 // void getPlanesY()
@@ -584,18 +585,19 @@ void SortOnD()
       }
     }
   }
-  for( int i=0; i<n_planes; i++)
-  {
-    std::cout<<"Plane "<<i<<" "<<coeff_init[i][0]<<" "<<coeff_init[i][1]<<" "<<coeff_init[i][2]<<" "<<coeff_init[i][3]<<std::endl;
-  }
+  // for( int i=0; i<n_planes; i++)
+  // {
+  //   std::cout<<"Plane "<<i<<" "<<coeff_init[i][0]<<" "<<coeff_init[i][1]<<" "<<coeff_init[i][2]<<" "<<coeff_init[i][3]<<std::endl;
+  // }
 }
 float distBetweenPlanes()
 {
     float sumin, sumout=0, dist;
-    for(int i=0;i<n_planes-1;i++)
-    {
+    // for(int i=0;i<n_planes-1;i++)
+    // {
+    int i =0;
       sumin=0;
-      for(int j=0; j<100;j++){
+      for(int j=0; j<10;j++){
         //std::cout<<"Entered for"<<std::endl;
         pcl::PointXYZRGB point = cloud_pub->points[inlie[i]->indices[rand()%(inlie[i]->indices.size()-1)]];
         //pcl::ModelCoefficients::Ptr coeff (new pcl::ModelCoefficients);
@@ -611,10 +613,10 @@ float distBetweenPlanes()
 
       }
       //std::cout<<"dout "<<sumout<<"n :"<<n_planes<<std::endl;
-      dist=sumin/100;
-      sumout+=dist;
-    }
-    dist=sumout/n_planes;
+      dist=sumin/10;
+    //   sumout+=dist;
+    // }
+    // dist=sumout/n_planes;
     return dist;
 }
 private:
